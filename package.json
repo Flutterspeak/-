@@ -1,0 +1,9 @@
+{
+  "name": "moji-novel-workbench",
+  "version": "1.0.0",
+  "private": true,
+  "description": "简易小说写作工作台：按人物、情节与文风逐章生成，并自动维护故事梗概",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

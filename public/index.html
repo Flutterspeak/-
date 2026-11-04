@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>墨迹 · 小说工作台</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">墨</span>
+        <span class="brand-name">墨迹<span class="brand-sub">小说工作台</span></span>
+      </div>
+      <input id="novel-title" class="novel-title" maxlength="60" placeholder="未命名小说" aria-label="小说标题">
+      <div class="topbar-actions">
+        <span id="sync-state" class="sync-state">已保存</span>
+        <button id="btn-export" class="btn btn-ghost" type="button">导出</button>
+        <button id="btn-api" class="btn btn-ghost" type="button">API 设置</button>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="chapters" type="button" role="tab">章节</button>
+        <button class="tab" data-tab="summary" type="button" role="tab">情节总结</button>
+        <button class="tab" data-tab="setup" type="button" role="tab">设定</button>
+      </div>
+
+      <div class="tab-panel active" data-panel="chapters">
+        <button id="btn-new-chapter" class="btn btn-primary btn-block" type="button">＋ 新建章节</button>
+        <ul id="chapter-list" class="chapter-list"></ul>
+      </div>
+
+      <div class="tab-panel" data-panel="summary">
+        <div class="panel-block">
+          <div class="panel-title-row">
+            <h3>故事梗概</h3>
+            <span class="hint-inline">自动维护</span>
+          </div>
+          <textarea id="rolling-summary" class="textarea summary-textarea" rows="9" placeholder="每章生成后会自动更新，下一章生成时会带上它。"></textarea>
+          <p class="hint">这是“到目前为止”的剧情总结，可手动修改。生成新章节时会作为前情提供给 AI。</p>
+        </div>
+        <div class="panel-block">
+          <div class="panel-title-row">
+            <h3>各章摘要</h3>
+          </div>
+          <div id="chapter-summaries" class="chapter-summaries"></div>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="setup">
+        <div class="panel-block">
+          <h3>世界观</h3>
+          <textarea id="setup-world" class="textarea" rows="4" placeholder="时代、地点、规则、氛围……"></textarea>
+        </div>
+        <div class="panel-block">
+          <h3>整体文风</h3>
+          <textarea id="setup-style" class="textarea" rows="4" placeholder="例如：冷峻克制的悬疑笔调，短句为主，多用环境暗示情绪。"></textarea>
+          <label class="field-label" for="setup-pov">叙事人称</label>
+          <select id="setup-pov" class="input">
+            <option>第三人称</option>
+            <option>第一人称</option>
+            <option>第二人称</option>
+            <option>第三人称（多视角）</option>
+          </select>
+        </div>
+        <div class="panel-block">
+          <div class="panel-title-row">
+            <h3>人物</h3>
+            <button id="btn-add-character" class="link-btn" type="button">＋ 添加</button>
+          </div>
+          <div id="character-list" class="character-list"></div>
+        </div>
+        <div class="panel-block">
+          <button id="btn-sample" class="btn btn-ghost btn-block" type="button">载入示例项目</button>
+          <p class="hint">示例会覆盖当前小说内容。填好设定后，在「章节」里写下本章要点即可生成。</p>
+        </div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <section id="editor-empty" class="empty-state">
+        <div class="empty-mark">墨</div>
+        <h2>从一个章节开始</h2>
+        <p>设定人物与世界观，写下本章情节要点。<br>AI 会接着前文和故事梗概，一章一章地写下去。</p>
+        <div class="empty-actions">
+          <button id="btn-empty-new" class="btn btn-primary" type="button">新建第一章</button>
+          <button id="btn-empty-sample" class="btn btn-ghost" type="button">载入示例</button>
+        </div>
+      </section>
+
+      <section id="editor" class="editor hidden">
+        <div class="chapter-head">
+          <div class="chapter-no" id="chapter-no">第 1 章</div>
+          <input id="chapter-title" class="chapter-title" maxlength="80" placeholder="章节标题（可留空）" aria-label="章节标题">
+        </div>
+
+        <div class="chapter-tools">
+          <label class="mini-field">
+            <span>本章风格</span>
+            <input id="chapter-style" class="input" placeholder="留空则使用全局文风">
+          </label>
+          <label class="mini-field mini-narrow">
+            <span>目标字数</span>
+            <input id="chapter-words" class="input" type="number" min="200" max="20000" step="100">
+          </label>
+          <div class="tool-buttons">
+            <button id="btn-generate" class="btn btn-primary" type="button">生成本章</button>
+            <button id="btn-stop" class="btn btn-danger hidden" type="button">停止</button>
+          </div>
+        </div>
+
+        <div class="brief-card">
+          <label for="chapter-brief" class="brief-label">本章情节要点 <span>这一章要发生什么，相当于给 AI 的章节指令</span></label>
+          <textarea id="chapter-brief" class="textarea brief-textarea" rows="4" placeholder="例如：雨夜，沈砚收到一封没有署名的信，信里只有钟楼的地图与一行字：“第七声钟响时，别回头。”他冒雨前往钟楼，在门廊遇见等在那里的苏婉。"></textarea>
+        </div>
+
+        <div class="writing-area">
+          <textarea id="chapter-content" class="content-editor" placeholder="生成的内容会出现在这里；也可以先手写，再让 AI 接着写。"></textarea>
+        </div>
+
+        <footer class="editor-footer">
+          <span id="word-count" class="word-count">0 字</span>
+          <span id="generate-state" class="gen-state"></span>
+          <div class="footer-actions">
+            <button id="btn-view-prompt" class="link-btn" type="button">查看提示词</button>
+            <button id="btn-summarize" class="link-btn" type="button">重新总结本章</button>
+            <button id="btn-delete-chapter" class="link-btn danger" type="button">删除章节</button>
+          </div>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <div id="api-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="api-modal-title">
+    <div class="modal-card">
+      <header class="modal-head">
+        <h2 id="api-modal-title">API 设置</h2>
+        <button class="modal-close" type="button" data-close="api-modal" aria-label="关闭">×</button>
+      </header>
+      <div class="modal-body">
+        <p class="hint">支持 OpenAI 兼容接口。Key 只保存在本机浏览器中，生成时由本地服务转发，不会写入项目文件。</p>
+        <label class="field-label" for="api-base">API 地址</label>
+        <input id="api-base" class="input" placeholder="https://api.deepseek.com/v1">
+        <p class="hint">可填到 /v1 为止；也可直接填完整的 /chat/completions 地址。</p>
+
+        <label class="field-label" for="api-key">API Key</label>
+        <input id="api-key" class="input" type="password" placeholder="sk-..." autocomplete="off">
+
+        <label class="field-label" for="api-model">模型名称</label>
+        <input id="api-model" class="input" list="model-list" placeholder="deepseek-chat" autocomplete="off">
+        <datalist id="model-list"></datalist>
+        <p class="hint">常用：DeepSeek 用 <code>https://api.deepseek.com/v1</code> + <code>deepseek-chat</code>；OpenAI 用 <code>https://api.openai.com/v1</code> + <code>gpt-4o-mini</code>。</p>
+
+        <div class="settings-grid">
+          <label class="field-label" for="api-temperature">
+            温度 <span id="temp-value" class="value-badge">1.0</span>
+            <input id="api-temperature" type="range" min="0" max="1.5" step="0.1">
+          </label>
+          <label class="field-label" for="api-maxtokens">
+            最大生成 tokens
+            <input id="api-maxtokens" class="input" type="number" min="256" max="32000" step="128">
+          </label>
+        </div>
+
+        <label class="check-row">
+          <input id="api-autosum" type="checkbox">
+          <span>每章生成后自动更新故事梗概</span>
+        </label>
+
+        <div id="api-test-result" class="test-result"></div>
+      </div>
+      <footer class="modal-foot">
+        <button id="btn-test-api" class="btn btn-ghost" type="button">测试连接</button>
+        <button id="btn-save-api" class="btn btn-primary" type="button">保存设置</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="prompt-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="prompt-modal-title">
+    <div class="modal-card modal-wide">
+      <header class="modal-head">
+        <h2 id="prompt-modal-title">本章提示词</h2>
+        <button class="modal-close" type="button" data-close="prompt-modal" aria-label="关闭">×</button>
+      </header>
+      <div class="modal-body">
+        <p id="prompt-meta" class="hint"></p>
+        <h3 class="prompt-section-title">系统提示词</h3>
+        <pre id="prompt-system" class="prompt-block"></pre>
+        <h3 class="prompt-section-title">用户提示词</h3>
+        <pre id="prompt-user" class="prompt-block"></pre>
+      </div>
+      <footer class="modal-foot">
+        <button id="btn-copy-prompt" class="btn btn-ghost" type="button">复制完整提示词</button>
+        <button class="btn btn-primary" type="button" data-close="prompt-modal">关闭</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="config.local.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
