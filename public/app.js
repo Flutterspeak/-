@@ -2,10 +2,18 @@
   'use strict';
 
   const STORAGE_KEY = 'moji-novel-workbench-v1';
-  const LOCAL_DEFAULTS =
-    window.MOJI_DEFAULT_CONFIG && typeof window.MOJI_DEFAULT_CONFIG === 'object'
-      ? window.MOJI_DEFAULT_CONFIG
-      : {};
+  let LOCAL_DEFAULTS = {};
+
+  async function loadLocalDefaults() {
+    try {
+      const response = await fetch('config.local.json', { cache: 'no-store' });
+      if (!response.ok) return {};
+      const data = await response.json();
+      return data && typeof data === 'object' ? data : {};
+    } catch {
+      return {};
+    }
+  }
 
   const $ = (id) => document.getElementById(id);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -203,7 +211,7 @@
     };
   }
 
-  let state = loadState();
+  let state = null;
   let saveTimer = null;
   let generating = false;
   let summarizing = false;
@@ -1336,5 +1344,11 @@ ${chapter.content.trim()}
     setTab(state.ui.activeTab || 'chapters', true);
   }
 
-  init();
+  async function boot() {
+    LOCAL_DEFAULTS = await loadLocalDefaults();
+    state = loadState();
+    init();
+  }
+
+  boot();
 })();
